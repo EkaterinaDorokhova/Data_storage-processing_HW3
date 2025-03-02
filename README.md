@@ -70,7 +70,7 @@ select column_name, data_type, character_maximum_length
 from information_schema.columns
 where table_name = 'transaction';
 ```
-Скриншот результата
+Скриншоты результата
   
 ![Загруженная таблица customer](customer.png)
 ![Загруженная таблица transaction](transaction.png)
@@ -173,7 +173,7 @@ having sum(t.list_price) = (select max(total)
                                   from transaction
                                   group by customer_id) sub);
 ```
-Скриншоты результов
+Скриншоты результатов
   
 ![Результат запроса 5_min](Result_5_min.png)
 ![Результат запроса 5_max](Result_5_max.png)
