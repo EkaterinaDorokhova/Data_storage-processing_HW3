@@ -72,51 +72,126 @@ where table_name = 'transaction';
 ```
 
 ## 2. Выполнить запросы
-### 1) :
+### 1) Вывести распределение (количество) клиентов по сферам деятельности, отсортировав результат по убыванию количества:
 ```dbml
-
+select job_industry_category, count(*) as customer_count
+from customer
+group by job_industry_category
+order by customer_count desc;
 ```
 ### Скриншот результата
 ![Результат запроса 1](Result_1.png)
 
-### 2) :
+### 2) Найти сумму транзакций за каждый месяц по сферам деятельности, отсортировав по месяцам и по сфере деятельности:
 ```dbml
-
+select extract(year from transaction_date) as year,
+       extract(month from transaction_date) as month,
+       c.job_industry_category,
+       sum(t.list_price) as total_sales
+from transaction t
+join customer c on t.customer_id = c.customer_id
+group by year, month, c.job_industry_category
+order by year, month, c.job_industry_category;
 ```
 ### Скриншот результата
 ![Результат запроса 2](Result_2.png)
   
-### 3) :
+### 3) Вывести количество онлайн-заказов для всех брендов в рамках подтвержденных заказов клиентов из сферы IT:
 ```dbml
-
+select t.brand, count(*) as online_orders
+from transaction t
+join customer c on t.customer_id = c.customer_id
+where t.online_order = true
+  and t.order_status = 'Approved'
+  and c.job_industry_category = 'IT'
+group by t.brand
+order by online_orders desc;
 ```
 ### Скриншот результата
 ![Результат запроса 3](Result_3.png)
 
- ### 4) :
+ ### 4) Найти по всем клиентам сумму всех транзакций (list_price), максимум, минимум и количество транзакций, отсортировав результат по убыванию суммы транзакций и количества клиентов. Выполните двумя способами: используя только group by и используя только оконные функции. Сравните результат:
+Способ 1: group by
 ```dbml
-
+select customer_id, 
+       sum(list_price) as total_spent,
+       max(list_price) as max_transaction,
+       min(list_price) as min_transaction,
+       count(*) as transaction_count
+from transaction
+group by customer_id
+order by total_spent desc, transaction_count desc;
 ```
-### Скриншот результата
-![Результат запроса 4](Result_4.png)
-
- ### 5) :
+Способ 2: Оконные функции
 ```dbml
-
+select customer_id, 
+       sum(list_price) as total_spent,
+       max(list_price) as max_transaction,
+       min(list_price) as min_transaction,
+       count(*) as transaction_count
+from transaction
+group by customer_id
+order by total_spent desc, transaction_count desc;
 ```
-### Скриншот результата
-![Результат запроса 5](Result_5.png)
+### Скриншоты результатов
+![Результат запроса 4_group by](Result_4_1.png)
+![Результат запроса 4_оконные функции](Result_4_2.png)
 
- ### 6) :
+ ### 5) Найти имена и фамилии клиентов с минимальной/максимальной суммой транзакций за весь период (сумма транзакций не может быть null). Напишите отдельные запросы для минимальной и максимальной суммы:
+Минимальная сумма
 ```dbml
+select c.first_name, c.last_name, sum(t.list_price) as total_spent
+from transaction t
+join customer c on t.customer_id = c.customer_id
+group by c.customer_id, c.first_name, c.last_name
+having sum(t.list_price) = (select min(total) 
+                            from (select customer_id, sum(list_price) as total
+                                  from transaction
+                                  group by customer_id) sub);
+```
+Максимальная сумма
+```dbml
+select c.first_name, c.last_name, sum(t.list_price) as total_spent
+from transaction t
+join customer c on t.customer_id = c.customer_id
+group by c.customer_id, c.first_name, c.last_name
+having sum(t.list_price) = (select max(total) 
+                            from (select customer_id, sum(list_price) as total
+                                  from transaction
+                                  group by customer_id) sub);
+```
+Сравнение:
+1) Оба способа позволяют получить общую сумму (total_spent), максимальную (max_transaction) и минимальную (min_transaction) сумму транзакций и количество транзакций (transaction_count) для каждого клиента.
+Их результаты совпадают.
+2) Разница:
 
+
+### Скриншоты результов
+![Результат запроса 5_min](Result_5.png)
+![Результат запроса 5_max](Result_5.png)
+
+ ### 6) Вывести только самые первые транзакции клиентов. Решить с помощью оконных функций:
+```dbml
+select * from (
+    select customer_id, transaction_date, list_price, 
+           row_number() over (partition by customer_id order by transaction_date) as rn
+    from transaction
+) t
+where rn = 1;
 ```
 ### Скриншот результата
 ![Результат запроса 6](Result_6.png)
 
- ### 7) :
+ ### 7) Вывести имена, фамилии и профессии клиентов, между транзакциями которых был максимальный интервал (интервал вычисляется в днях):
 ```dbml
-
+select c.first_name, c.last_name, c.job_title, 
+       t.customer_id, t.transaction_date, 
+       lag(t.transaction_date) over (partition by t.customer_id order by t.transaction_date) as prev_transaction,
+       t.transaction_date - lag(t.transaction_date) over (partition by t.customer_id order by t.transaction_date) as interval_days
+from transaction t
+join customer c on t.customer_id = c.customer_id
+order by interval_days desc
+limit 1;
 ```
 ### Скриншот результата
 ![Результат запроса 7](Result_7.png)
